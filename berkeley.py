@@ -12,10 +12,19 @@ class BerKeleyTeacher(object):
         self.req = requests.session()
         self.path = '../ComputeNetwork/file/'
         self.page_list = []
+        self.faculty_pattern = re.compile('http://facultybio\.haas\.berkeley\.edu/faculty-list/[a-z]+-?[a-z]+/')
         self.title_list = ['Associate Professor', 'Assistant Professor', 'Professor Emeritus', 'Professor']
-        self.wrong_title = ['Adjunct Professor', 'Visiting Associate Professor']
+        self.title_pattern = re.compile('(?:Associate|Assistant)? ?Professor ?(?:Emeritus)?', re.I)
+        self.wrong_title_pattern = re.compile('(Adjunct Professor)|(Visiting Associate Professor)', re.I)
+        self.phone_pattern = re.compile('[0-9]{3}-[0-9]{3}-[0-9]{4}')
+        self.email_pattern = re.compile('var email_addr = (.*?\.(?:com|edu)");')
         self.result_list = []
-        self.interest = 'Current Research and Interests</strong></p><br><ul>([\s\S]*?)</ul><br>'
+        self.interest = re.compile('Current Research and Interests</strong></p><br><ul><li>([\s\S]*?)</li></ul><br>')
+        self.name_pattern = re.compile('<span><strong>([\s\S]*?)</strong></span>')
+        self.homepage_pattern = re.compile('Homepage:.*(http://.*?)==', re.I)
+        self.teaching_pattern = re.compile('Teaching</strong></p><br><ul><li>(.*?)</li></ul><br><br><p><strong>', re.I)
+        self.background_pattern = re.compile('Positions Held</strong></p> +<br><p>(.*?)</p><br><br><p><strong>', re.I)
+
     def get_header(self, host):
         header = {
             'Host': host,
@@ -30,20 +39,20 @@ class BerKeleyTeacher(object):
         return header
 
     def parse_photo_url(self):
-        res = self.req.get(self.url, headers = self.headers).content.decode("UTF-8")
-        faculty_pattern = 'http:\/\/facultybio\.haas\.berkeley\.edu\/faculty-list\/[a-z]+\-?[a-z]+\/'
-        faculty_list = re.findall(re.compile(faculty_pattern), res)
+        res = self.req.get(self.url, headers=self.headers).content.decode("UTF-8")
+
+        faculty_list = re.findall(self.faculty_pattern, res)
         print(len(faculty_list))
         text = "\n".join(faculty_list)
         self.save_file('list', text)
         print(faculty_list)
         for i in range(0, len(faculty_list), 2):
             faculty_url = faculty_list[i]
-            faculty_page = self.req.get(faculty_url, headers = self.headers)
+            faculty_page = self.req.get(faculty_url, headers=self.headers)
             try:
                 faculty_text = faculty_page.content.decode('utf-8')
-                name = re.findall(re.compile('<span><strong>([\s\S]*?)</strong></span>'), faculty_text)[0].replace('\n',
-                                                                                                                   '').replace(
+                name = re.findall(self.name_pattern, faculty_text)[0].replace('\n',
+                                                                              '').replace(
                     '\t', '')
                 print(name)
                 self.save_file(name.replace(' ', '_'), faculty_text)
@@ -79,7 +88,7 @@ class BerKeleyTeacher(object):
                 soup = BeautifulSoup(faculty_text, 'html5lib')
 
                 try:
-                    name = re.findall(re.compile('<span><strong>([\s\S]*?)</strong></span>'), faculty_text)[0].replace(
+                    name = re.findall(self.name_pattern, faculty_text)[0].replace(
                         '\n',
                         '').replace(
                         '\t', '')
@@ -89,28 +98,31 @@ class BerKeleyTeacher(object):
                 try:
                     main_content = soup.find_all(valign="top")[1]
                     main_text = main_content.text
-                    title_text = re.findall(re.compile('(?:Associate|Assistant)? ?Professor ?(?:Emeritus)?', re.I),
-                                            main_text)
+                    title_text = re.findall(self.title_pattern, main_text)
                     print(title_text)
-                    wrong_title = re.findall(re.compile('(Adjunct Professor)|(Visiting Associate Professor)', re.I), main_text)
+                    wrong_title = re.findall(self.wrong_title_pattern, main_text)
                     if len(title_text) > 0 and len(wrong_title) == 0:
                         title = title_text[0]
                         try:
-                            telephone = re.findall(re.compile('[0-9]{3}\-[0-9]{3}\-[0-9]{4}'), faculty_text)[0]
+                            telephone = re.findall(self.phone_pattern, faculty_text)[0]
                             print(telephone)
                         except BaseException as e:
                             telephone = ''
                             self.format_error(e, name + "电话出错")
                         try:
-                            email_str = re.findall(re.compile('var email_addr = (.*?\.(?:com|edu)");'), faculty_text)[0]
+                            email_str = re.findall(self.email_pattern, faculty_text)[0]
                             email = self.parse_email(email_str)
                             print(email)
                         except BaseException as e:
                             email = ''
                             self.format_error(e, name + 'email出错')
 
-                        self.parse_interest(faculty_text)
-                        self.result_list.append(dict(name=name, title=title, telephone=telephone, email=email))
+                        interest = self.parse_interest(faculty_text)
+                        homepage = self.parse_homepage(main_text)
+                        teaching = self.parse_teaching(faculty_text)
+                        background = self.parse_background(faculty_text)
+                        self.result_list.append(
+                            dict(name=name, title=title, telephone=telephone, email=email, interest=interest, homepage=homepage, teaching=teaching, background=background))
                         print('##############')
                 except BaseException as e:
                     self.format_error(e, 'title')
@@ -138,8 +150,35 @@ class BerKeleyTeacher(object):
 
     def parse_interest(self, text):
         main_text = text.replace('\t', '').replace('\n', '')
-        interest = re.findall(re.compile(self.interest), main_text)
-        print('interest', interest)
+        interest = re.findall(self.interest, main_text)
+        if len(interest) > 0:
+            return interest[0].replace('</li><li>', ';')
+        else:
+            return ''
+
+    def parse_homepage(self, text):
+        main_text = text.replace('\t', '==').replace('\n', '==')
+        homepage = re.findall(self.homepage_pattern, main_text)
+        if len(homepage) > 0:
+            return homepage[0]
+        else:
+            return ''
+
+    def parse_teaching(self, text):
+        main_text = text.replace('\t', '').replace('\n', '')
+        teaching = re.findall(self.teaching_pattern, main_text)
+        if (len(teaching)) > 0:
+            return teaching[0].replace('</li><li>', ';')
+        else:
+            return ''
+
+    def parse_background(self, text):
+        main_text = text.replace('\t', '').replace('\n', '')
+        back = re.findall(self.background_pattern, main_text)
+        if (len(back)) > 0:
+            return back[0].replace('<br />', ';').replace('</p><p>', ';').replace('&#8211;','-')
+        else:
+            return ''
 
 
 if __name__ == '__main__':
