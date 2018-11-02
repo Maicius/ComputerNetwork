@@ -5,7 +5,7 @@ import os
 import pandas as pd
 
 
-class BerKeleyTeacher(object):
+class BerkeleyTeacher(object):
     def __init__(self):
         self.url = 'http://facultybio.haas.berkeley.edu/faculty-photo/'
         self.headers = self.get_header("facultybio.haas.berkeley.edu")
@@ -24,6 +24,10 @@ class BerKeleyTeacher(object):
         self.homepage_pattern = re.compile('Homepage:.*(http://.*?)==', re.I)
         self.teaching_pattern = re.compile('Teaching</strong></p><br><ul><li>(.*?)</li></ul><br><br><p><strong>', re.I)
         self.background_pattern = re.compile('Positions Held</strong></p> +<br><p>(.*?)</p><br><br><p><strong>', re.I)
+        self.waste_tag = re.compile('<em>|</em>|</p>|</li>|</ul>|<p>|</span>|&#822[0-9];|</a>|', re.I)
+        self.extract_from_li = re.compile('<span.*?>|<li.*?>|<div.*?>|<a.*?>|<!--.*?>|<script.*?>.*?</script>|<noscript>.*?</noscript>', re.I)
+        self.subn_split = re.compile('<br>|</br>|<br />')
+        self.subn_split2 = re.compile('&#821[0-9];')
 
     def get_header(self, host):
         header = {
@@ -152,7 +156,7 @@ class BerKeleyTeacher(object):
         main_text = text.replace('\t', '').replace('\n', '')
         interest = re.findall(self.interest, main_text)
         if len(interest) > 0:
-            return interest[0].replace('</li><li>', ';')
+            return self.remove_waste_tag(interest[0])
         else:
             return ''
 
@@ -160,7 +164,8 @@ class BerKeleyTeacher(object):
         main_text = text.replace('\t', '==').replace('\n', '==')
         homepage = re.findall(self.homepage_pattern, main_text)
         if len(homepage) > 0:
-            return homepage[0]
+            res = self.remove_waste_tag(homepage[0])
+            return res
         else:
             return ''
 
@@ -168,7 +173,8 @@ class BerKeleyTeacher(object):
         main_text = text.replace('\t', '').replace('\n', '')
         teaching = re.findall(self.teaching_pattern, main_text)
         if (len(teaching)) > 0:
-            return teaching[0].replace('</li><li>', ';')
+            res = self.remove_waste_tag(teaching[0])
+            return res
         else:
             return ''
 
@@ -176,13 +182,28 @@ class BerKeleyTeacher(object):
         main_text = text.replace('\t', '').replace('\n', '')
         back = re.findall(self.background_pattern, main_text)
         if (len(back)) > 0:
-            return back[0].replace('<br />', ';').replace('</p><p>', ';').replace('&#8211;','-')
+            res = self.remove_waste_tag(back[0])
+            return res
         else:
             return ''
 
+    def remove_waste_tag(self, text):
+        res = re.subn(self.subn_split, ';', text)[0]
+        res = re.subn(self.extract_from_li,'', res)[0]
+        res = re.subn(self.waste_tag,'', res)[0]
+        res = re.subn(self.subn_split2, '-', res)[0]
+        res = res.replace('&nbsp;', ' ')
+        return res
+def test_subn():
+    b = BerkeleyTeacher()
+    text1 = 'At Haas since 20122012 &#8211; present, Willis H. Booth Chair in Bankin'
+    text = 'Organizational Theory</div>;<div class="gmail_default">Economic Sociology</div>;<div class="gmail_default">Categorization and Markets</div>;<div class="gmail_default">Labor markets and hiring</div>;<div class="gmail_default">Career choice</div>'
+    print(b.remove_waste_tag(text1))
+
 
 if __name__ == '__main__':
-    berkeley = BerKeleyTeacher()
+    berkeley = BerkeleyTeacher()
     # berkeley.parse_photo_url()
     berkeley.open_file_list()
     berkeley.parse_page()
+    # test_subn()
