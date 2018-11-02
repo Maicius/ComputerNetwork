@@ -59,7 +59,8 @@ class BerkeleyTeacher(object):
                                                                               '').replace(
                     '\t', '')
                 print(name)
-                self.save_file(name.replace(' ', '_'), faculty_text)
+                self.do_parse_page(faculty_text)
+                # self.save_file(name.replace(' ', '_'), faculty_text)
             except BaseException as e:
                 print(e)
                 print('error')
@@ -87,57 +88,60 @@ class BerkeleyTeacher(object):
 
     def parse_page(self):
         for faculty_text in self.page_list:
-            try:
-                soup = BeautifulSoup(faculty_text, 'html5lib')
-
-                try:
-                    name = re.findall(self.name_pattern, faculty_text)[0].replace(
-                        '\n',
-                        '').replace(
-                        '\t', '')
-                    print(name)
-                except BaseException as e:
-                    self.format_error(e, 'name 出错')
-                try:
-                    main_content = soup.find_all(valign="top")[1]
-                    main_text = main_content.text
-                    title_text = re.findall(self.title_pattern, main_text)
-                    print(title_text)
-                    wrong_title = re.findall(self.wrong_title_pattern, main_text)
-                    if len(title_text) > 0 and len(wrong_title) == 0:
-                        title = title_text[0]
-                        try:
-                            telephone = re.findall(self.phone_pattern, faculty_text)[0]
-                            print(telephone)
-                        except BaseException as e:
-                            telephone = ''
-                            self.format_error(e, name + "电话出错")
-                        try:
-                            email_str = re.findall(self.email_pattern, faculty_text)[0]
-                            email = self.parse_email(email_str)
-                            print(email)
-                        except BaseException as e:
-                            email = ''
-                            self.format_error(e, name + 'email出错')
-
-                        interest = self.parse_interest(faculty_text)
-                        homepage = self.parse_homepage(main_text)
-                        teaching = self.parse_teaching(faculty_text)
-                        background = self.parse_background(faculty_text)
-                        self.result_list.append(
-                            dict(name=name, title=title, telephone=telephone, email=email, interest=interest, homepage=homepage, teaching=teaching, background=background))
-                        print('##############')
-                except BaseException as e:
-                    self.format_error(e, 'title')
-
-
-            except BaseException as e:
-                self.format_error(e, 'nothing')
+            self.do_parse_page(faculty_text)
 
             # self.save_file(name.replace(' ', '_'), faculty_text)
 
         result_list_df = pd.DataFrame(self.result_list)
         result_list_df.to_excel(self.path + 'result.xlsx')
+
+    def do_parse_page(self, faculty_text):
+        try:
+            soup = BeautifulSoup(faculty_text, 'html5lib')
+
+            try:
+                name = re.findall(self.name_pattern, faculty_text)[0].replace(
+                    '\n',
+                    '').replace(
+                    '\t', '')
+                print(name)
+            except BaseException as e:
+                self.format_error(e, 'name 出错')
+            try:
+                main_content = soup.find_all(valign="top")[1]
+                main_text = main_content.text
+                title_text = re.findall(self.title_pattern, main_text)
+                print(title_text)
+                wrong_title = re.findall(self.wrong_title_pattern, main_text)
+                if len(title_text) > 0 and len(wrong_title) == 0:
+                    title = title_text[0]
+                    try:
+                        telephone = re.findall(self.phone_pattern, faculty_text)[0]
+                        print(telephone)
+                    except BaseException as e:
+                        telephone = ''
+                        self.format_error(e, name + "电话出错")
+                    try:
+                        email_str = re.findall(self.email_pattern, faculty_text)[0]
+                        email = self.parse_email(email_str)
+                        print(email)
+                    except BaseException as e:
+                        email = ''
+                        self.format_error(e, name + 'email出错')
+
+                    interest = self.parse_interest(faculty_text)
+                    homepage = self.parse_homepage(main_text)
+                    teaching = self.parse_teaching(faculty_text)
+                    background = self.parse_background(faculty_text)
+                    self.result_list.append(
+                        dict(name=name, title=title, telephone=telephone, email=email, interest=interest,
+                             homepage=homepage, teaching=teaching, background=background))
+                    print('##############')
+            except BaseException as e:
+                self.format_error(e, 'title')
+
+        except BaseException as e:
+            self.format_error(e, 'nothing')
 
     def parse_email(self, email_str):
         split_email = email_str.split('+')

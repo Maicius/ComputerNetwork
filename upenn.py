@@ -44,38 +44,42 @@ class Uppen(BerkeleyTeacher):
                 url = url.replace('\"', '')
                 res = self.req.get(url=url, headers=self.headers)
                 content = res.content.decode('utf-8')
-                self.save_file(name, content)
+                # 保存网页到本地
+                # self.save_file(name, content)
                 print(res.status_code, name)
+                self.do_parse_page(content)
             except BaseException as e:
                 self.format_error(e, 'error')
 
     def parse_page(self):
         for page in self.page_list:
-            soup = BeautifulSoup(page, 'html5lib')
-            try:
-                title_text = soup.find_all(attrs={'class': 'wfp-header-titles'})[0].text
-                title = re.findall(self.title_pattern, title_text)
-                wrong_title = re.findall(self.wrong_title_pattern, title_text)
-                if len(title) > 0 and len(wrong_title) == 0:
-                    title = title[0]
-                    print(title)
-                    name = soup.h1.text.strip()
-                    print(name)
-                    email = soup.find_all(attrs={'class': 'wfp-contact-information'})[0]
-                    email, phone = self.parse_phone_email(str(email))
-                    research = soup.find_all(attrs={'class': 'wfp-header-research'})[0]
-                    interest, website = self.parse_research_interest(str(research))
+            self.do_parse_page(page)
 
-                    background_text = soup.find_all(attrs={'id': 'wfp-tabbed-navigation-section--1'})[0].find_all(
-                        attrs={'class', 'wfp-tabbed-navigation-section-container'})[0].text
-                    self.result_list.append(
-                        dict(name=name, title=title, phone=phone, email=email, interest=interest, website=website,
-                             background=background_text))
-            except BaseException as e:
-                print(e, 'error')
-            result_df = pd.DataFrame(self.result_list)
-            result_df.to_csv(self.path + 'result.csv')
+    def do_parse_page(self, page):
+        soup = BeautifulSoup(page, 'html5lib')
+        try:
+            title_text = soup.find_all(attrs={'class': 'wfp-header-titles'})[0].text
+            title = re.findall(self.title_pattern, title_text)
+            wrong_title = re.findall(self.wrong_title_pattern, title_text)
+            if len(title) > 0 and len(wrong_title) == 0:
+                title = title[0]
+                print(title)
+                name = soup.h1.text.strip()
+                print(name)
+                email = soup.find_all(attrs={'class': 'wfp-contact-information'})[0]
+                email, phone = self.parse_phone_email(str(email))
+                research = soup.find_all(attrs={'class': 'wfp-header-research'})[0]
+                interest, website = self.parse_research_interest(str(research))
 
+                background_text = soup.find_all(attrs={'id': 'wfp-tabbed-navigation-section--1'})[0].find_all(
+                    attrs={'class', 'wfp-tabbed-navigation-section-container'})[0].text
+                self.result_list.append(
+                    dict(name=name, title=title, phone=phone, email=email, interest=interest, website=website,
+                         background=background_text))
+        except BaseException as e:
+            print(e, 'error')
+        result_df = pd.DataFrame(self.result_list)
+        result_df.to_csv(self.path + 'result.csv')
     def parse_phone_email(self, text):
         email = re.findall(self.email_pattern, text)
         phone = re.findall(self.phone_pattern, text)
@@ -90,6 +94,6 @@ class Uppen(BerkeleyTeacher):
 
 if __name__ == '__main__':
     uppen = Uppen()
-    # uppen.get_all_faculty_list()
+    uppen.get_all_faculty_list()
     uppen.open_file_list()
     uppen.parse_page()
