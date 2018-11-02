@@ -24,9 +24,9 @@ class BerkeleyTeacher(object):
         self.homepage_pattern = re.compile('Homepage:.*(http://.*?)==', re.I)
         self.teaching_pattern = re.compile('Teaching</strong></p><br><ul><li>(.*?)</li></ul><br><br><p><strong>', re.I)
         self.background_pattern = re.compile('Positions Held</strong></p> +<br><p>(.*?)</p><br><br><p><strong>', re.I)
-        self.waste_tag = re.compile('<em>|</em>|</p>|</li>|</ul>|<p>|</span>|&#822[0-9];|</a>|', re.I)
+        self.waste_tag = re.compile('<em>|</em>|</p>|</ul>|<p>|</span>|&#822[0-9];|</a>|', re.I)
         self.extract_from_li = re.compile('<span.*?>|<li.*?>|<div.*?>|<a.*?>|<!--.*?>|<script.*?>.*?</script>|<noscript>.*?</noscript>', re.I)
-        self.subn_split = re.compile('<br>|</br>|<br />')
+        self.subn_split = re.compile('<br>|</br>|<br />|</li>')
         self.subn_split2 = re.compile('&#821[0-9];')
 
     def get_header(self, host):
@@ -74,7 +74,6 @@ class BerkeleyTeacher(object):
         path_dir = os.listdir(self.path)
         for dir in path_dir:
             file_name = self.path + dir
-
             self.do_open_file(file_name=file_name)
 
     def do_open_file(self, file_name):
@@ -138,7 +137,7 @@ class BerkeleyTeacher(object):
             # self.save_file(name.replace(' ', '_'), faculty_text)
 
         result_list_df = pd.DataFrame(self.result_list)
-        result_list_df.to_csv(self.path + 'result.csv')
+        result_list_df.to_excel(self.path + 'result.xlsx')
 
     def parse_email(self, email_str):
         split_email = email_str.split('+')
