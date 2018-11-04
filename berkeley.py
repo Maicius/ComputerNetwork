@@ -10,7 +10,7 @@ class BerkeleyTeacher(object):
         self.url = 'http://facultybio.haas.berkeley.edu/faculty-photo/'
         self.headers = self.get_header("facultybio.haas.berkeley.edu")
         self.req = requests.session()
-        self.path = '../ComputeNetwork/file/'
+        self.path = ''
         self.page_list = []
         self.faculty_pattern = re.compile('http://facultybio\.haas\.berkeley\.edu/faculty-list/[a-z]+-?[a-z]+/')
         self.title_list = ['Associate Professor', 'Assistant Professor', 'Professor Emeritus', 'Professor']
@@ -44,11 +44,10 @@ class BerkeleyTeacher(object):
 
     def parse_photo_url(self):
         res = self.req.get(self.url, headers=self.headers).content.decode("UTF-8")
-
         faculty_list = re.findall(self.faculty_pattern, res)
         print(len(faculty_list))
         text = "\n".join(faculty_list)
-        self.save_file('list', text)
+        # self.save_file('list', text)
         print(faculty_list)
         for i in range(0, len(faculty_list), 2):
             faculty_url = faculty_list[i]
@@ -89,11 +88,14 @@ class BerkeleyTeacher(object):
     def parse_page(self):
         for faculty_text in self.page_list:
             self.do_parse_page(faculty_text)
-
             # self.save_file(name.replace(' ', '_'), faculty_text)
 
+    def save_data_to_excel(self):
         result_list_df = pd.DataFrame(self.result_list)
-        result_list_df.to_excel(self.path + 'result.xlsx')
+        cols = ['name', 'title', 'email', 'telephone', 'interest', 'homepage', 'background']
+        result_list_df = result_list_df.ix[:, cols]
+        result_list_df.to_csv(self.path + 'berkeley.csv')
+        result_list_df.to_excel(self.path + 'berkeley.xlsx')
 
     def do_parse_page(self, faculty_text):
         try:
@@ -106,12 +108,11 @@ class BerkeleyTeacher(object):
                     '\t', '')
                 print(name)
             except BaseException as e:
-                self.format_error(e, 'name 出错')
+                self.format_error(e, 'name error')
             try:
                 main_content = soup.find_all(valign="top")[1]
                 main_text = main_content.text
                 title_text = re.findall(self.title_pattern, main_text)
-                print(title_text)
                 wrong_title = re.findall(self.wrong_title_pattern, main_text)
                 if len(title_text) > 0 and len(wrong_title) == 0:
                     title = title_text[0]
@@ -120,7 +121,7 @@ class BerkeleyTeacher(object):
                         print(telephone)
                     except BaseException as e:
                         telephone = ''
-                        self.format_error(e, name + "电话出错")
+                        self.format_error(e, name + "没有电话")
                     try:
                         email_str = re.findall(self.email_pattern, faculty_text)[0]
                         email = self.parse_email(email_str)
@@ -135,7 +136,7 @@ class BerkeleyTeacher(object):
                     background = self.parse_background(faculty_text)
                     self.result_list.append(
                         dict(name=name, title=title, telephone=telephone, email=email, interest=interest,
-                             homepage=homepage, teaching=teaching, background=background))
+                             homepage=homepage, background=background))
                     print('##############')
             except BaseException as e:
                 self.format_error(e, 'title')
@@ -146,7 +147,6 @@ class BerkeleyTeacher(object):
     def parse_email(self, email_str):
         split_email = email_str.split('+')
         split_email = "".join(map(lambda x: x.replace("\"", "").strip(), split_email))
-        print(split_email)
         return split_email
 
     def format_error(self, e, msg):
@@ -197,16 +197,9 @@ class BerkeleyTeacher(object):
         res = re.subn(self.subn_split2, '-', res)[0]
         res = res.replace('&nbsp;', ' ')
         return res
-def test_subn():
-    b = BerkeleyTeacher()
-    text1 = 'At Haas since 20122012 &#8211; present, Willis H. Booth Chair in Bankin'
-    text = 'Organizational Theory</div>;<div class="gmail_default">Economic Sociology</div>;<div class="gmail_default">Categorization and Markets</div>;<div class="gmail_default">Labor markets and hiring</div>;<div class="gmail_default">Career choice</div>'
-    print(b.remove_waste_tag(text1))
 
 
 if __name__ == '__main__':
     berkeley = BerkeleyTeacher()
-    # berkeley.parse_photo_url()
-    berkeley.open_file_list()
-    berkeley.parse_page()
-    # test_subn()
+    berkeley.parse_photo_url()
+    berkeley.save_data_to_excel()

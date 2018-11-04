@@ -16,7 +16,7 @@ class Uppen(BerkeleyTeacher):
             'cookie'] = '_ga=GA1.3.941405599.1541124764; _gid=GA1.3.198821962.1541124764; STYXKEY_wmarkops_consent=dismiss; _ga=GA1.4.941405599.1541124764; _gid=GA1.4.198821962.1541124764; visitor_id327371=100705601; visitor_id327371-hash=a22ca43ca8d90478df8261d7807da1a81c1200c8b1f0927a588eff312414b22b44c7e2a5a54cdfef4ccbe2596e3e6ae32b425044'
         self.href_list_all = []
         self.email_pattern = ''
-        self.path = '../ComputeNetwork/uppen_file2/'
+        self.path = ''
         self.headers['Referer'] = 'https://www.wharton.upenn.edu/faculty-directory/'
         self.email_pattern = re.compile('mailto:(.*@.*\.edu|com?)\"')
         self.phone_pattern = re.compile('\(?[0-9]{3}\)? ?-?[0-9]{3}-[0-9]{4}')
@@ -74,12 +74,15 @@ class Uppen(BerkeleyTeacher):
                 background_text = soup.find_all(attrs={'id': 'wfp-tabbed-navigation-section--1'})[0].find_all(
                     attrs={'class', 'wfp-tabbed-navigation-section-container'})[0].text
                 self.result_list.append(
-                    dict(name=name, title=title, phone=phone, email=email, interest=interest, website=website,
+                    dict(name=name, title=title, telephone=phone, email=email, interest=interest, homepage=website,
                          background=background_text))
         except BaseException as e:
             print(e, 'error')
         result_df = pd.DataFrame(self.result_list)
-        result_df.to_csv(self.path + 'result.csv')
+        cols = ['name', 'title', 'email', 'telephone', 'interest', 'homepage', 'background']
+        result_list_df = result_df.ix[:, cols]
+        result_list_df.to_csv(self.path + 'uppen.csv')
+        result_list_df.to_excel(self.path + 'uppen.xlsx')
     def parse_phone_email(self, text):
         email = re.findall(self.email_pattern, text)
         phone = re.findall(self.phone_pattern, text)
@@ -95,5 +98,4 @@ class Uppen(BerkeleyTeacher):
 if __name__ == '__main__':
     uppen = Uppen()
     uppen.get_all_faculty_list()
-    uppen.open_file_list()
-    uppen.parse_page()
+    uppen.parse_profile()
