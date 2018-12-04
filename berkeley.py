@@ -92,10 +92,16 @@ class BerkeleyTeacher(object):
 
     def save_data_to_excel(self):
         result_list_df = pd.DataFrame(self.result_list)
-        cols = ['name', 'title', 'email', 'telephone', 'interest', 'homepage', 'background']
+        cols = ['name', 'title', 'email', 'telephone','group', 'interest', 'homepage', 'background']
         result_list_df = result_list_df.ix[:, cols]
-        result_list_df.to_csv(self.path + 'berkeley.csv')
-        result_list_df.to_excel(self.path + 'berkeley.xlsx')
+        result_list_df.to_csv(self.path + 'berkeley2.csv')
+        result_list_df.to_excel(self.path + 'berkeley2.xlsx')
+
+    def change_columns_name(self):
+        df = pd.read_csv(self.path + 'berkeley2.csv')
+        df.drop('Unnamed: 0', axis=1, inplace=True)
+        df.columns=['姓名', '职称', '邮箱', '电话', '专业', '研究领域', '个人网站', '背景介绍']
+        df.to_excel(self.path + 'berkeley3.xlsx')
 
     def do_parse_page(self, faculty_text):
         try:
@@ -112,6 +118,10 @@ class BerkeleyTeacher(object):
             try:
                 main_content = soup.find_all(valign="top")[1]
                 main_text = main_content.text
+                try:
+                    group = main_content.find_all('a', href=re.compile('group'))[0].text.strip()
+                except:
+                    group = ''
                 title_text = re.findall(self.title_pattern, main_text)
                 wrong_title = re.findall(self.wrong_title_pattern, main_text)
                 if len(title_text) > 0 and len(wrong_title) == 0:
@@ -135,7 +145,7 @@ class BerkeleyTeacher(object):
                     teaching = self.parse_teaching(faculty_text)
                     background = self.parse_background(faculty_text)
                     self.result_list.append(
-                        dict(name=name, title=title, telephone=telephone, email=email, interest=interest,
+                        dict(name=name, title=title, telephone=telephone, email=email, group=group, interest=interest,
                              homepage=homepage, background=background))
                     print('##############')
             except BaseException as e:
@@ -201,5 +211,6 @@ class BerkeleyTeacher(object):
 
 if __name__ == '__main__':
     berkeley = BerkeleyTeacher()
-    berkeley.parse_photo_url()
-    berkeley.save_data_to_excel()
+    # berkeley.parse_photo_url()
+    # berkeley.save_data_to_excel()
+    berkeley.change_columns_name()

@@ -50,6 +50,7 @@ class Uppen(BerkeleyTeacher):
                 self.do_parse_page(content)
             except BaseException as e:
                 self.format_error(e, 'error')
+        self.save_data_to_excel()
 
     def parse_page(self):
         for page in self.page_list:
@@ -58,6 +59,7 @@ class Uppen(BerkeleyTeacher):
     def do_parse_page(self, page):
         soup = BeautifulSoup(page, 'html5lib')
         try:
+            group = soup.find_all(attrs={'class':'brand-text'})[0].text
             title_text = soup.find_all(attrs={'class': 'wfp-header-titles'})[0].text
             title = re.findall(self.title_pattern, title_text)
             wrong_title = re.findall(self.wrong_title_pattern, title_text)
@@ -74,19 +76,27 @@ class Uppen(BerkeleyTeacher):
                 background_text = soup.find_all(attrs={'id': 'wfp-tabbed-navigation-section--1'})[0].find_all(
                     attrs={'class', 'wfp-tabbed-navigation-section-container'})[0].text
                 self.result_list.append(
-                    dict(name=name, title=title, telephone=phone, email=email, interest=interest, homepage=website,
+                    dict(name=name, title=title, telephone=phone, email=email,group=group, interest=interest, homepage=website,
                          background=background_text))
         except BaseException as e:
             print(e, 'error')
+
+    def save_data_to_excel(self):
         result_df = pd.DataFrame(self.result_list)
-        cols = ['name', 'title', 'email', 'telephone', 'interest', 'homepage', 'background']
+        cols = ['name', 'title', 'email', 'telephone', 'group', 'interest', 'homepage', 'background']
         result_list_df = result_df.ix[:, cols]
-        result_list_df.to_csv(self.path + 'uppen.csv')
-        result_list_df.to_excel(self.path + 'uppen.xlsx')
+        result_list_df.to_csv(self.path + 'uppen2.csv')
+        self.change_columns_name2(result_list_df)
+
     def parse_phone_email(self, text):
         email = re.findall(self.email_pattern, text)
         phone = re.findall(self.phone_pattern, text)
         return email[0] if len(email) > 0 else '', phone[0] if len(phone) > 0 else ''
+
+    def change_columns_name2(self, df):
+        df.columns=['姓名', '职称', '邮箱', '电话', '专业', '研究领域', '个人网站', '背景介绍']
+        df.to_excel(self.path + 'uppen2.xlsx')
+
 
     def parse_research_interest(self, text):
         text = text.replace('\t', '').replace('\n', '')
